@@ -1,0 +1,209 @@
+{
+  "name": "Slack Agent Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "2f8f3789-5b87-4627-8d47-8a5e70866023",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        -336
+      ],
+      "id": "f981ce65-8afd-4f61-977b-c6a643b2dbfd",
+      "name": "Webhook",
+      "webhookId": "2f8f3789-5b87-4627-8d47-8a5e70866023"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"answer\": \"{{ $json.output }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        400,
+        -288
+      ],
+      "id": "7afe7eaf-b847-4fb5-a04f-4cd1d611fbd1",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook').first().json.body.text }}",
+        "options": {
+          "systemMessage": "=You are a Slack channel manager bot. Your job is to:\n1. Read each incoming message from employees.\n2. Analyze the intent of the message (e.g., bug report, feature request, clarification, help needed).\n3. Provide a short and clear helpful response.\n4. Tag the correct employee responsible for resolving the issue, using their Slack USER ID mention (not just plain @username).\n\nEmployee list (role: Slack ID):\n{{ $json.formattedMessage }}\n\nGuidelines:\n- Always tag exactly one person if possible.\n- If the issue relates to frontend (UI, design, CSS, website visuals, layout, client-side bug), tag the frontend developer.\n- If the issue relates to backend (APIs, database, authentication, server logic, infrastructure), tag the backend developer.\n- If unsure, choose the most relevant role based on the message.\n- Your response must include the correct Slack user ID in the format: <@USERID>.\n- Do not invent or guess usernames. Only use values provided in the Employee list.\n- Keep responses concise, friendly, and action-oriented."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        48,
+        -336
+      ],
+      "id": "8f7faae5-a2b0-4837-b1ff-a0be437391a4",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-thinking-exp-1219",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        128,
+        -112
+      ],
+      "id": "7dbe0c59-9144-4d48-9a04-2abf8f42fa06",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "JJcje3LU2qmgqjwa",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1r5wtYsfzuXEXxrMX65L7lIbzhyb4q4BTOh1y0m6c8F4",
+          "mode": "list",
+          "cachedResultName": "Employees",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r5wtYsfzuXEXxrMX65L7lIbzhyb4q4BTOh1y0m6c8F4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r5wtYsfzuXEXxrMX65L7lIbzhyb4q4BTOh1y0m6c8F4/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -336,
+        -64
+      ],
+      "id": "b24e1b44-2100-4245-96d4-e47f06a33984",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "70JDXuNXHzKwifDf",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -48,
+        240
+      ],
+      "id": "7bef6938-14c6-4941-b1b3-61b555d42499",
+      "name": "Edit Fields",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// items = incoming JSON array from Sheet\nconst rows = items.map(item => `${item.json.Role}: ${item.json.SlackID}`);\n\n// join them into one multiline string\nconst formattedMessage = rows.join(\"\\n\");\n\nreturn [\n  {\n    json: {\n      formattedMessage\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -192
+      ],
+      "id": "8656d874-c21a-422b-800d-20c5ae83e1c4",
+      "name": "Code"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        []
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "da957145-3474-45d6-807d-f6bc49526e9d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1830d554c9ac49b8015359a6cfa96e9263bab0ac5948d20e5b031cf42690d945"
+  },
+  "id": "dk864YucfERvSkHX",
+  "tags": []
+}
